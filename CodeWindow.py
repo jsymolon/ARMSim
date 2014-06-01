@@ -7,12 +7,13 @@ import wx.lib.mixins.inspection
 import logging
 import globals
 import arm7instrdecode
+import ARMCPU
 
 ###########################################################################
 ## Handle the CodeWindow window
 ###########################################################################
 class CodeWindow(wx.ScrolledWindow):
-    
+
     def __init__(self, parent, id, pos, size, style):
         self.parent = parent
         wx.ScrolledWindow.__init__(self, parent, -1, style=style|wx.TAB_TRAVERSAL|wx.VSCROLL|wx.ALWAYS_SHOW_SB, name=u"CodeWindow")
@@ -20,7 +21,7 @@ class CodeWindow(wx.ScrolledWindow):
         self.font = wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL)
         self.sz = self.font.GetPixelSize()
         self.fheight = self.sz.GetHeight()
-        
+
         self.verHeightMaxLines = 1024    # want the scrollable aread to be this
         self.verHeightScrollLines = 32 # want to scroll this many lines
         self.verHeightMaxPixels =  (self.fheight * self.verHeightMaxLines)  # how many pixels
@@ -40,7 +41,7 @@ class CodeWindow(wx.ScrolledWindow):
     #----------------------------------------------------------------------
     #def OnEraseBackground(self, event):  # empty to prevent flicker
     #    pass
-    
+
     #----------------------------------------------------------------------
     def OnEraseBackground(self, evt):
         dc = evt.GetDC()
@@ -60,7 +61,7 @@ class CodeWindow(wx.ScrolledWindow):
         self.PrepareDC(dc)
         print "onPaint --------------------------------------------------------"
         self.DoDrawing(dc)
-            
+
     #----------------------------------------------------------------------
     def DoDrawing(self, dc, printing=False):
         dc.BeginDrawing()
@@ -76,7 +77,7 @@ class CodeWindow(wx.ScrolledWindow):
         cspw,csph = self.CalcUnscrolledPosition(w,h)
         #print "VSCSP x:" + str(x1) + " y:" + str(cspy) + " w:" + str(w) + " h:" + str(h)
         # debug
-        dc.SetPen(wx.Pen(wx.NamedColour('red'), 2)) 
+        dc.SetPen(wx.Pen(wx.NamedColour('red'), 2))
         dc.DrawRectangle(x1, cspy, w, h)
         # enable the selected font
         dc.SetFont(self.font)
@@ -96,11 +97,11 @@ class CodeWindow(wx.ScrolledWindow):
             if (addr == globals.regs[globals.PC]):
                 dc.SetPen(wx.Pen(wx.NamedColour('green'), 20))
             dc.DrawRectangle(0, h + self.fheight, w, self.fheight)
-            dc.SetPen(wx.Pen(wx.NamedColour('black'), 20)) 
+            dc.SetPen(wx.Pen(wx.NamedColour('black'), 20))
             dc.DrawText(str(instrStr), 2, h)
         dc.EndDrawing()
-    
-    #----------------------------------------------------------------------       
+
+    #----------------------------------------------------------------------
     def OnSize(self, evt):
         w,h = evt.GetSize()
         print "OnSize evt:" + str(w) + " " + str(h)

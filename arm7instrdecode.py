@@ -24,26 +24,14 @@ ASR = 2
 ROR = 3
 RRX = 4
 
-TCxBASE = int("FFFA0000", 16)
-UDPBASE = int("FFFB0000", 16)
-TWIBASE = int("FFFB8000", 16)
-USART0BASE = int("FFFC0000", 16)
-USART1BASE = int("FFFC4000", 16)
-PWMCBASE = int("FFFCC000", 16)
-SSCBASE = int("FFFD4000", 16)
-ADCBASE = int("FFFD8000", 16)
-# system controller
-SYSCBASE = int("FFFC0000", 16)
-AICBASE  = int("FFFFF000", 16)
-DBGUBASE = int("FFFFF200", 16)
-PICABASE = int("FFFFF400", 16)
-PMCBASE  = int("FFFFFC00", 16)
-RSTCBASE = int("FFFFFD00", 16)
-RTTBASE  = int("FFFFFD20", 16)
-WDTBASE  = int("FFFFFD40", 16)
-VREGBASE = int("FFFFFD60", 16)
-MCBASE   = int("FFFFFF00", 16)
+# ---------------------------------------------------------------------
+def getSetValue(self, bitmask, shift, baseval, value): #
+    if value is None: # get
+        return ((baseval & bitmask) >> shift)
+    else:   #set
+        return ((baseval & (~ bitmask)) | (value << shift))
 
+# ---------------------------------------------------------------------
 def getInstructionFromAddress(self, addr, memory):
     # read memory
     #code = 305419896 #0x12345678
@@ -54,7 +42,8 @@ def getInstructionFromAddress(self, addr, memory):
         code = code << 8
         code += memory[addr + 3 - accum]
     return '%08X' % addr + getInstructionFromCode(self, code, False)
-    
+
+# ---------------------------------------------------------------------
 def execInstructionAtAddress(self, addr, memory):
     global code
     global newPC
@@ -69,6 +58,7 @@ def execInstructionAtAddress(self, addr, memory):
     newPC = globals.regs[globals.PC] + 4 #branch will modify pc
     return newPC
 
+# ---------------------------------------------------------------------
 def getInstructionFromCode(self, code, execute):
     # dump code
     out  = ' %02X' % (code >> 24)
@@ -87,6 +77,7 @@ def getInstructionFromCode(self, code, execute):
         out += inst11decode(self, code, execute)
     return out
 
+# ---------------------------------------------------------------------
 def inst00decode(self, code, execute):
     """ decode the bits at 27-26 = 00
         data processing
@@ -154,6 +145,7 @@ def inst00decode(self, code, execute):
     retStr += doOperand2(self, code, execute)
     return retStr
 
+# ---------------------------------------------------------------------
 def inst01decode(self, code, execute):
     """ decode the bits at 27-26 = 01
     """
@@ -174,11 +166,12 @@ def inst01decode(self, code, execute):
         return " STRBT "
     return "      "
 
+# ---------------------------------------------------------------------
 def inst10decode(self, code, execute):
     """ decode the bits at 27-26 = 10
     """
     if (code & int("02000000", 16) > 0):
-        return doBranch (self, code, execute) 
+        return doBranch (self, code, execute)
     else:
         if (code >> 20) & 1 == 1:
             return " LDM  "
@@ -186,11 +179,13 @@ def inst10decode(self, code, execute):
             return " STM  "
     return "      "
 
+# ---------------------------------------------------------------------
 def inst11decode(self, code, execute):
     """ decode the bits at 27-26 = 11
     """
     return "      "
 
+# ---------------------------------------------------------------------
 def doBranch(self, code, execute):
     global newPC
     offset = 0
@@ -214,6 +209,7 @@ def doBranch(self, code, execute):
     else:
         return " B"+getCondCode(self, code)+"      "+str("%08X"%addr)
 
+# ---------------------------------------------------------------------
 def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
     global Rm
     global Rs
@@ -234,10 +230,10 @@ def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
             print "mul " + str(Rd) + " " + str(Rm) +  " " + str(Rs)
             if (code >> 21) & 1 == 1: # A
                 # MLA Rd = Rm * Rs + Rn
-                globals.regs[Rd] = globals.regs[Rm] * globals.regs[Rs] + globals.regs[Rn]  
+                globals.regs[Rd] = globals.regs[Rm] * globals.regs[Rs] + globals.regs[Rn]
             else:
                 # MUL Rd = Rm * Rs
-                globals.regs[Rd] = globals.regs[Rm] * globals.regs[Rs]  
+                globals.regs[Rd] = globals.regs[Rm] * globals.regs[Rs]
         if oc2 == int("B", 16) & mod == 0:
             retStr = " STR"
         if oc2 == int("B", 16) & mod == 1:
@@ -306,6 +302,7 @@ def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
             globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~globals.CARRYBIT
     return
 
+# ---------------------------------------------------------------------
 def getCondCode(self, code):
     global condCode
     condCode = int(code >> 28)
@@ -343,11 +340,13 @@ def getCondCode(self, code):
         return " NV"
     return "   "
 
+# ---------------------------------------------------------------------
 def conditionMet(self):
     if (globals.regs[CSPR] ^ condCode == 0):
         return True;
     return False
 
+# ---------------------------------------------------------------------
 def getSCode(self, code):
     """ data processing - tells if cond codes are affected """
     global sCode
@@ -356,34 +355,40 @@ def getSCode(self, code):
         return "S  "
     return "   "
 
+# ---------------------------------------------------------------------
 def getICode(self, code):
     """ data processing - tells if op is immediate """
     global iCode
     iCode = (code >> 25) & int("1",16)
-    
+
+# ---------------------------------------------------------------------
 def getRn(self, code):
     global Rn
     Rn = code & int("000F0000", 16)
     Rn = (Rn >> 16)
     return " R"+str("%02d"%Rn)
-    
+
+# ---------------------------------------------------------------------
 def getRd(self, code):
     global Rd
     Rd = code & int("0000F000", 16)
     Rd = (Rd >> 12)
     return " R"+str("%02d"%Rd)
-    
+
+# ---------------------------------------------------------------------
 def getRs(self, code):
     global Rs
     Rs = code & int("00000F00", 16)
     Rs = (Rs >> 8)
     return " R"+str("%02d"%Rs)
 
+# ---------------------------------------------------------------------
 def getRm(self, code):
     global Rm
     Rm = code & int("0000000F", 16)
     return " R"+str("%02d"%Rm)
 
+# ---------------------------------------------------------------------
 def doShift(self, shiftOp, shiftAmt, Rm):
     """ function to do the barrel shifts
     """
@@ -424,7 +429,8 @@ def doShift(self, shiftOp, shiftAmt, Rm):
         if carryOut > 0:
             Rm = Rm | globals.HIGHBIT
     return Rm  # actually OP2
-            
+
+# ---------------------------------------------------------------------
 def doOperand2(self, code, execute):
     global OP2
     global immCnt
@@ -484,12 +490,14 @@ def doOperand2(self, code, execute):
         if execute:
             doDataInst(self, Rd, Rn, shiftOp, RotImm * 2, immCnt)
     return outstr
-        
+
+# ---------------------------------------------------------------------
 def getRm(self, code):
     global Rm
     Rm = code & int("0000000F", 16)
     return " R"+str("%02d"%Rm)
-  
+
+# ---------------------------------------------------------------------
 def getImm(self, code, bits):
     global immCnt
     if bits == 8:
@@ -498,11 +506,13 @@ def getImm(self, code, bits):
     immCnt = code & int("FFF", 16)
     return str(" #%02d"%immCnt)
 
+# ---------------------------------------------------------------------
 def getShiftOp(self, code):  # or "rotate" field
     """ data processing - immediate op - rotate field """
 
     return "    "
-    
+
+# ---------------------------------------------------------------------
 def getShiftImm(self, code):
     global shiftCnt
     shiftCnt = (code >> 7) & int("1F",16)

@@ -4,12 +4,13 @@ import wx.xrc
 import wx.lib.mixins.inspection
 import logging
 import globals
+import ARMCPU
 
 ###########################################################################
 ## Handle the Register window
 ###########################################################################
 class Registers(wx.Panel):
-    
+
     def __init__(self, parent, id, pos, size, style):
         self.parent = parent
         wx.Panel.__init__(self, parent=parent, id=wx.ID_ANY, style=style, name=u"Registers")
@@ -20,7 +21,7 @@ class Registers(wx.Panel):
         fontsz = self.font.GetPixelSize()
         self.fheight = fontsz.GetHeight()
         self.Bind( wx.EVT_PAINT, self.onPaint )
-    
+
     def buildRegValString(self, i):
         out = "R"+str("%02d"%i)+":"+str("%08x" % globals.regs[i])
         out += str(" %08x" % globals.regs[i])
@@ -80,11 +81,11 @@ class Registers(wx.Panel):
                 cpsr += " user"
         if (i == 18):
             out += "(spsr):"
-        
+
         if (i == 17):
             out += cpsr
         return out
-                
+
     def onPaint(self, event):
         dc = wx.PaintDC(self)
         x1,y1,w,h = dc.GetBoundingBox()
@@ -101,7 +102,7 @@ class Registers(wx.Panel):
             dc.SetPen(wx.Pen(wx.NamedColour('black'), 20))
             out = self.buildRegValString(i)
             dc.DrawText(out, 5, self.h)
-            
+
     def OnInnerSizeChanged(self):
         w,h = self.sizer.GetMinSize()
         self.SetVirtualSize((w,h))
