@@ -254,7 +254,7 @@ class MainFrame ( wx.Frame ):
             #if len(lineText) > 0:
             #    lineText = lineText[:-2]
             #    self.m_scrolled_cmd.SetLineText(noLines - 2)
-        evt.Skip()
+        #evt.Skip() # windows & linux act differently
 
     def onReturn(self, evt):
         """
@@ -280,13 +280,17 @@ class MainFrame ( wx.Frame ):
             if (firstChar == 's' ):
                 globals.regs[globals.PC] = arm7instrdecode.execInstructionAtAddress(self, globals.regs[globals.PC], globals.memory)
             if (firstChar == 'r' ):
-                # change registers
-                # r# #
-                items = shlex.split(lineText)
-                print items
-                reg = int(items[0][1:])
-                val = long(items[1],16)
-                print "r:" + str(reg) + " v:" + str(val)
-                globals.regs[reg] = val
-                print "r:" + str(reg) + " v:" + str(val)+" PC:"+str(globals.regs[globals.PC])
+                if lineText[1:2] == 'e':
+                    # reset
+                    ARMCPU.reset(self)
+                else:
+                    # change registers
+                    # r# #
+                    items = shlex.split(lineText)
+                    print items
+                    reg = int(items[0][1:])
+                    val = long(items[1],16)
+                    print "r:" + str(reg) + " v:" + str(val)
+                    globals.regs[reg] = val
+                    print "r:" + str(reg) + " v:" + str(val)+" PC:"+str(globals.regs[globals.PC])
         self.updateKids()

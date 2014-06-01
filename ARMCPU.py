@@ -13,15 +13,26 @@ import arm7instrdecode
 #        undef        11011
 #        user         10000
 #
+
+PMODE_USR = int("10000", 2)
+PMODE_FIQ = int("10001", 2)
+PMODE_IRQ = int("10010", 2)
+PMODE_SVC = int("10011", 2)
+PMODE_MON = int("10110", 2)
+PMODE_ABT = int("10111", 2) # abort
+PMODE_HPY = int("11010", 2)
+PMODE_UND = int("11011", 2)
+PMODE_SYS = int("11111", 2)
+
 # Addresses
-# 00 - reset
-# 04 - undef
-# 08 - software int
-# 0c - prefetch abort
-# 10 - data abort
-# 14 - reserved
-# 18 - int req IRQ
-# 1c - fast int req
+ADDR_INT = int("00", 16) # 00 - reset
+ADDR_UND = int("04", 16) # 04 - undef
+ADDR_SW  = int("08", 16) # 08 - software int
+ADDR_PFA = int("0C", 16) # 0c - prefetch abort
+ADDR_DA  = int("10", 16) # 10 - data abort
+ADDR_RSV = int("14", 16) # 14 - reserved
+ADDR_IRQ = int("18", 16) # 18 - int req IRQ
+ADDR_FIR = int("1C", 16) # 1c - fast int req
 
 CPSR_FLGS_MASK = int("11110000000000000000000000000000", 2)
 CPSR_Q_MASK = int("00001000000000000000000000000000", 2)
@@ -62,16 +73,6 @@ CPSR_SHIFT = {
    "CPSR_T":5,
    "CPSR_M":0}
 
-PMODE_USR = int("10000", 2)
-PMODE_FIQ = int("10001", 2)
-PMODE_IRQ = int("10010", 2)
-PMODE_SVC = int("10011", 2)
-PMODE_MON = int("10110", 2)
-PMODE_ABT = int("10111", 2) # abort
-PMODE_HPY = int("11010", 2)
-PMODE_UND = int("11011", 2)
-PMODE_SYS = int("11111", 2)
-
 HIGHBIT = int("80000000", 16)
 NEGATIVEBIT = int("80000000",16)
 ZEROBIT = int("40000000",16)
@@ -85,7 +86,16 @@ THUMBBIT = int("00000020",16)
 OPMODEBIT = int("0000001F",16)
 
 # ---------------------------------------------------------------------
-#def reset(self):
+def reset(self):
+   rwCPSR(self, "CPSR_M", PMODE_SVC) # goto supervisor mode
+   rwCPSR(self, "CPSR_I", 1) # kill interrupts
+   rwCPSR(self, "CPSR_F", 1)
+   rwCPSR(self, "CPSR_A", 1)
+   # IT clear
+   rwCPSR(self, "CPSR_J", 0)
+   rwCPSR(self, "CPSR_T", 0)  # Arm / Thumb
+   #rwCPSR(self, "CPSR_E", 1)  # 0- little endian, 1- big endian
+   globals.regs[globals.PC] = ADDR_INT
 
 # ---------------------------------------------------------------------
 def rwCPSR(self, bitname, bitvalue):
