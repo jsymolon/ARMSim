@@ -6,7 +6,6 @@ import logging
 
 from MainFrame import MainFrame
 
-
 registerOtherSplitter = 0
 memoryOtherSplitter = 0
 memorySplitter = 0
