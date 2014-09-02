@@ -230,9 +230,12 @@ class MainFrame ( wx.Frame ):
         if dlg.ShowModal() == wx.ID_OK:
             self.filename = dlg.GetFilename()
             self.dirname = dlg.GetDirectory()
-        self.full_path =  os.path.join(self.dirname, self.filename)
-        print "Open file:" + self.full_path  # test
-        efile = dumpelf.ELFFile(self.full_path, globals.memory)
+            self.filepath = dlg.GetPath()
+        #print "Open Path:" + self.filepath;
+        #self.full_path =  os.path.join(self.dirname, self.filename)
+        #print "Open file:" + self.full_path  # test
+        print "Open file:" + self.filepath  # test
+        efile = dumpelf.ELFFile(self.filepath, globals.memory)
         dlg.Destroy()
         self.updateKids()
 
@@ -242,9 +245,12 @@ class MainFrame ( wx.Frame ):
     #----------------------------------------------------------------------------
     def onKeyDown(self, evt):
         self.key = evt.GetKeyCode()
+	if self.key == wx.WXK_SHIFT:
+	    self.shift_key = self.shift_key ^ 1
+	    return
         self.m_scrolled_cmd.AppendText(chr(self.key))
         if self.key == wx.WXK_RETURN:
-        	self.onReturn(evt)
+            self.onReturn(evt)
         #print str(self.key)
         if self.key == 8:  # where's backspace ???
             print "backspace"
