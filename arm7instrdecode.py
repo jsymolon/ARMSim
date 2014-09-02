@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 # version 3
 import globals
+import logging
+import ARMCPU
 
 condCode = 0
 sCode = 0
@@ -49,7 +51,7 @@ def execInstructionAtAddress(self, addr, memory):
     global newPC
     code = 0
     newPC = addr
-    print "addr:"+hex(addr)
+    logging.debug("addr:"+hex(addr))
     self.addr = addr
     for accum in range(0, 4):
         code = code << 8
@@ -87,28 +89,30 @@ def inst00decode(self, code, execute):
     """
     self.opcode = code >> 21 & 15
     getICode(self, code)
+    retStr = "";
     if (self.opcode == 0):
-        oc2 = code >> 4 & 15
-        mod = code >> 20 & 1
-        #print "code:" + hex(code) + " oc2:" + hex(oc2) +  " mod:" + hex(mod)
-        if oc2 == int("0", 16):  # # or Rs
+        oc2 = code >> 4 & 15 # the other fixed field
+        mod = code >> 20 & 1 # S bit
+        andchk = oc2 | 1; # AND is 0000 and 0001
+        logging.debug("code:" + hex(code) + " oc2:" + hex(oc2) +  " mod:" + hex(mod) + " andchk:" + hex(andchk))
+        if andchk == 0b0001:  # # or Rs
             retStr = " AND"
-        if oc2 == int("9", 16):
+        if oc2 == 0b1001:
             if (code >> 21) & 1 == 1: # A
                 retStr = " MLA"
             else:
                 retStr = " MUL"
-        if oc2 == int("B", 16) & mod == 0:
+        if oc2 == 0b1011 and mod == 0:
             retStr = " STR"
-        if oc2 == int("B", 16) & mod == 1:
+        if oc2 == 0b1011 and mod == 1:
             retStr = " LDR"
-        if oc2 == int("D", 16) & mod == 0:
+        if oc2 == 0b1101 and mod == 0:
             retStr = " udf"
-        if oc2 == int("D", 16) & mod == 1:
+        if oc2 == 0b1101 and mod == 1:
             retStr = " LDR"
-        if oc2 == int("F", 16) & mod == 0:
+        if oc2 == 0b1111 and mod == 0:
             retStr = " udf"
-        if oc2 == int("F", 16) & mod == 1:
+        if oc2 == 0b1111 and mod == 1:
             retStr = " LDR"
     if (self.opcode == 1):
         retStr = " EOR"
@@ -189,45 +193,48 @@ def inst11decode(self, code, execute):
 def doBranch(self, code, execute):
     global newPC
     offset = 0
+    laddr = 0
     if code & int("00800000", 16): # handle negative bit
         offset = (int("00ffffff", 16) - (code & int("00ffffff", 16)))
         offset *= -1
-        addr = (offset * 4) + 4 + self.addr # add addr to make the relative display work,
+        laddr = (offset * 4) + 4 + self.addr # add addr to make the relative display work,
                                         # if exec, addr should = PC
     else:
         offset = code & int("007fffff", 16) #strip neg bit will pick up later
-        addr = (offset * 4) + 8 + self.addr # add addr to make the relative display work,
+        laddr = (offset * 4) + 8 + self.addr # add addr to make the relative display work,
                                         # if exec, addr should = PC
-    print "off:" + hex(offset) + " addr:" + str(addr) + " exe:" + str(execute)
+    logging.debug("off:" + hex(offset) + " addr:" + str(laddr) + " exe:" + str(execute))
     if (execute):
         if (code & int("01000000", 16) > 0): # branch & link vs branch
             globals.regs[14] = globals.regs[globals.PC]
-        globals.regs[globals.PC] = addr
+        globals.regs[globals.PC] = laddr
 
     if (code & int("01000000", 16) > 0): # branch & link vs branch
-        return " BL"+getCondCode(self, code)+"      "+str("%08X"%addr)
+        return " BL"+getCondCode(self, code)+"     "+str("%08X"%laddr)
     else:
-        return " B"+getCondCode(self, code)+"      "+str("%08X"%addr)
+        return " B"+getCondCode(self, code)+"      "+str("%08X"%laddr)
 
 # ---------------------------------------------------------------------
-def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
+def doDataInst(self, code, Rd, Rn, shiftOp, shiftAmt, RmVal):
     global Rm
     global Rs
+    logging.debug("doDataInst: Rm:" + str(Rm) + " Rs:" + str(Rs) + " code:" + str("%08X"%code) + " Rd:" + str(Rd) + " Rn:" + str(Rn) + " shiftOp:" + str(shiftOp) + " shiftAmt:" + str(shiftAmt) + " RmVal:" + str(RmVal))
     """ opCode is the data instructions """
     op2 = doShift(self, shiftOp, shiftAmt, RmVal)
-    print "op2:"+str(op2)+" d:"+str(Rd)
+    #logging.debug("op2:"+str(op2)+" d:"+str(Rd))
     if (self.opcode == 0):
         oc2 = code >> 4 & 15
         mod = code >> 20 & 1
-        print "code:" + hex(code) + " oc2:" + hex(oc2) +  " mod:" + hex(mod)
-        if oc2 == int("0", 16):  # # or Rs
+        andchk = oc2 | 1; # AND is 0000 and 0001
+        logging.debug("code:" + hex(code) + " oc2:" + hex(oc2) +  " mod:" + hex(mod) + " andchk:" + hex(andchk))
+        if andchk == 0b0001:  # # or Rs
            # AND rd = rn and op2
            globals.regs[Rd] = op2 & globals.regs[Rn]
         if oc2 == int("9", 16):
             getRm(self, code)
             getRs(self, code)
-            print "mul " + hex(globals.regs[Rd]) + " " + hex(globals.regs[Rm]) +  " " + hex(globals.regs[Rs])
-            print "mul " + str(Rd) + " " + str(Rm) +  " " + str(Rs)
+            logging.debug("mul " + hex(globals.regs[Rd]) + " " + hex(globals.regs[Rm]) +  " " + hex(globals.regs[Rs]))
+            logging.debug("mul " + str(Rd) + " " + str(Rm) +  " " + str(Rs))
             if (code >> 21) & 1 == 1: # A
                 # MLA Rd = Rm * Rs + Rn
                 globals.regs[Rd] = globals.regs[Rm] * globals.regs[Rs] + globals.regs[Rn]
@@ -246,6 +253,9 @@ def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
             retStr = " udf"
         if oc2 == int("F", 16) & mod == 1:
             retStr = " LDR"
+    # for the conditional exec, check the ccode and flags
+    if not conditionMet(self, condCode):
+        return
     if (self.opcode == 1):
         # EOR rd = rn EOR op2
         globals.regs[Rd] = op2 ^ globals.regs[Rn]
@@ -291,59 +301,109 @@ def doDataInst(self, Rd, Rn, shiftOp, shiftAmt, RmVal):
     if (self.opcode == 15):
         # MVN !rd (rn igrnored)
         globals.regs[Rd] = ~op2
-    if sCode != 0:  # set the flags
-        if globals.regs[Rd] == 0:
-            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | globals.ZEROBIT
+    if (sCode != 0 and Rd != 15):  # set the flags
+        if globals.regs[Rd] == 0:  # Zero
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
         else:
-            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~globals.ZEROBIT
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.ZEROBIT
         if carryOut == 1:
-            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | globals.CARRYBIT
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
         else:
-            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~globals.CARRYBIT
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.CARRYBIT
     return
 
 # ---------------------------------------------------------------------
 def getCondCode(self, code):
     global condCode
     condCode = int(code >> 28)
-    if (condCode == 0):
+    if (condCode == ARMCPU.CC_EQ):
         return " EQ"
-    if (condCode == 1):
+    if (condCode == ARMCPU.CC_NE):
         return " NE"
-    if (condCode == 2):
+    if (condCode == ARMCPU.CC_HS):
         return " HS"
-    if (condCode == 3):
+    if (condCode == ARMCPU.CC_LO):
         return " LO"
-    if (condCode == 4):
+    if (condCode == ARMCPU.CC_MI):
         return " MI"
-    if (condCode == 5):
+    if (condCode == ARMCPU.CC_PL):
         return " PL"
-    if (condCode == 6):
+    if (condCode == ARMCPU.CC_VS):
         return " VS"
-    if (condCode == 7):
+    if (condCode == ARMCPU.CC_VC):
         return " VC"
-    if (condCode == 8):
+    if (condCode == ARMCPU.CC_HI):
         return " HI"
-    if (condCode == 9):
+    if (condCode == ARMCPU.CC_LS):
         return " LS"
-    if (condCode == 10):
+    if (condCode == ARMCPU.CC_GE):
         return " GE"
-    if (condCode == 11):
+    if (condCode == ARMCPU.CC_LT):
         return " LT"
-    if (condCode == 12):
+    if (condCode == ARMCPU.CC_GT):
         return " GT"
-    if (condCode == 13):
+    if (condCode == ARMCPU.CC_LE):
         return " LE"
-    if (condCode == 14):
+    if (condCode == ARMCPU.CC_AL):
         return " AL"
-    if (condCode == 15):
+    if (condCode == ARMCPU.CC_NV):
         return " NV"
     return "   "
 
 # ---------------------------------------------------------------------
-def conditionMet(self):
-    if (globals.regs[CSPR] ^ condCode == 0):
-        return True;
+# check the passed in cond code set w/ the flags
+# return true if condition met aka exec instruction
+# ---------------------------------------------------------------------
+def conditionMet(self, xCode):
+    nCode = (globals.regs[globals.CPSR] & ARMCPU.NEGATIVEBIT) >> 31
+    zCode = (globals.regs[globals.CPSR] & ARMCPU.ZEROBIT) >> 30
+    cCode = (globals.regs[globals.CPSR] & ARMCPU.CARRYBIT) >> 29
+    vCode = (globals.regs[globals.CPSR] & ARMCPU.OVERBIT) >> 28
+    logging.debug("xCode:" + str(xCode) + " nCode:" + str(nCode) + " zCode:" + str(zCode) + " cCode:" + str(cCode) + " vCode:" + str(vCode))
+    logging.debug( str( (zCode & 1) ) + " " +
+        str( int( not (zCode & 1)) ) + " " +
+        str( (cCode & 1) ) + " " +
+        str( int(not (cCode & 1) )) + " " +
+        str( (nCode & 1) ) + " " +
+        str( int(not (nCode & 1) )) + " " +
+        str( (vCode & 1) ) + " " +
+        str( int(not (vCode & 1) )) + " " +
+        str( (cCode & 1) & (int(not (zCode & 1))) ) + " " +
+        str( (zCode & 1) & (int(not (cCode & 1))) ) + " " +
+        str( int(nCode == vCode) ) + " " +
+        str( int(nCode != vCode) ) + " " +
+        str( (int(not (zCode & 1))) & int(nCode == vCode))  + " " +
+        str( (zCode & 1) | int(nCode != vCode)))
+    if (xCode == ARMCPU.CC_EQ):  # EQ Z
+        return (zCode & 1)
+    if (xCode == ARMCPU.CC_NE):  # NE !Z
+        return int(not (zCode & 1))
+    if (xCode == ARMCPU.CC_HS): # CS / HS C
+        return (cCode & 1)
+    if (xCode == ARMCPU.CC_LO): # CC / LO !C
+        return int(not (cCode & 1)) 
+    if (xCode == ARMCPU.CC_MI): # MI N
+        return (nCode & 1) 
+    if (xCode == ARMCPU.CC_PL): # PL !N
+        return int(not (nCode & 1)) 
+    if (xCode == ARMCPU.CC_VS): # VS V
+        return (vCode & 1) 
+    if (xCode == ARMCPU.CC_VC): # VC !V
+        return (not (vCode & 1)) 
+    if (xCode == ARMCPU.CC_HI): # HI C & !Z
+        return (cCode & 1) & int(not (zCode & 1))
+    if (xCode == ARMCPU.CC_LS): # LS !C or Z
+        return (zCode & 1) & int(not (cCode & 1))
+    if (xCode == ARMCPU.CC_GE): # GE N == V
+        return int(nCode == vCode)
+    if (xCode == ARMCPU.CC_LT): # LT N != V
+        return int(nCode != vCode)
+    if (xCode == ARMCPU.CC_GT): # GT !Z & (N == V)
+        return (int(not (zCode & 1)) & int(nCode == vCode))
+    if (xCode == ARMCPU.CC_LE): # LE Z | (N != V)
+        return (zCode & 1) | int(nCode != vCode)
+    if (xCode == ARMCPU.CC_AL):
+        return 1
     return False
 
 # ---------------------------------------------------------------------
@@ -396,16 +456,16 @@ def doShift(self, shiftOp, shiftAmt, Rm):
     carryIn = 0
     carryOut = 0
     if shiftOp == ASR:
-        if Rm & globals.HIGHBIT > 0:
+        if Rm & ARMCPU.HIGHBIT > 0:
             carryIn = 1
     if shiftOp == RRX:
-        if globals.regs[globals.CPSR] & globals.CARRYBIT > 0:
+        if globals.regs[globals.CPSR] & ARMCPU.CARRYBIT > 0:
             carryIn = 1
     for x in range(0, shiftAmt):
         if shiftOp == LSL:
-            carryOut = Rm & globals.HIGHBIT
+            carryOut = Rm & ARMCPU.HIGHBIT
             # trying to shift the high bit out will cause a "long it too large", clear it
-            Rm = Rm & ~globals.NEGATIVEBIT
+            Rm = Rm & ~ARMCPU.NEGATIVEBIT
             Rm = Rm << 1
             print str(Rm)
         if shiftOp == LSR:
@@ -415,19 +475,19 @@ def doShift(self, shiftOp, shiftAmt, Rm):
             carryOut = Rm & 1
             Rm = Rm >> 1
             if carryIn:
-                Rm = Rm | globals.HIGHBIT
+                Rm = Rm | ARMCPU.HIGHBIT
             print hex(Rm)
         if shiftOp == ROR:
             carryOut = Rm & 1
             Rm = Rm >> 1
             if carryOut > 0:
-                Rm = Rm | globals.HIGHBIT
+                Rm = Rm | ARMCPU.HIGHBIT
     # RRX only does 1 loop
     if shiftOp == RRX:
         carryOut = Rm & 1
         Rm = Rm >> 1
         if carryOut > 0:
-            Rm = Rm | globals.HIGHBIT
+            Rm = Rm | ARMCPU.HIGHBIT
     return Rm  # actually OP2
 
 # ---------------------------------------------------------------------
@@ -477,7 +537,8 @@ def doOperand2(self, code, execute):
             shiftAmt = globals.regs[Rs]
             outstr += op + " R"+str("%02d"%Rs)
         if execute:
-            doDataInst(self, Rd, Rn, shiftOp, shiftAmt, globals.regs[Rm])
+            logging.debug("excute doDataInstr 1")
+            doDataInst(self, code, Rd, Rn, shiftOp, shiftAmt, globals.regs[Rm])
     else:
         #rotate (11-8) imm (7-0)  -> #(1<<5) -> #(imm<<shft)
         RotImm = (OP2 & int("F00", 16) >> 12)
@@ -488,7 +549,8 @@ def doOperand2(self, code, execute):
             outstr += ")"
         shiftOp = ROR
         if execute:
-            doDataInst(self, Rd, Rn, shiftOp, RotImm * 2, immCnt)
+            logging.debug("excute doDataInstr 2")
+            doDataInst(self, code, Rd, Rn, shiftOp, RotImm * 2, immCnt)
     return outstr
 
 # ---------------------------------------------------------------------
