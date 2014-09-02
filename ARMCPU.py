@@ -85,6 +85,23 @@ INTFIQBIT = int("00000040",16)
 THUMBBIT = int("00000020",16)
 OPMODEBIT = int("0000001F",16)
 
+CC_EQ = 0
+CC_NE = 1
+CC_HS = 2
+CC_LO = 3
+CC_MI = 4
+CC_PL = 5
+CC_VS = 6
+CC_VC = 7
+CC_HI = 8
+CC_LS = 9
+CC_GE = 10
+CC_LT = 11
+CC_GT = 12
+CC_LE = 13
+CC_AL = 14
+CC_NV = 15
+
 # ---------------------------------------------------------------------
 def reset(self):
    rwCPSR(self, "CPSR_M", PMODE_SVC) # goto supervisor mode
