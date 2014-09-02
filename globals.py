@@ -5,6 +5,9 @@ SP   = 13 #SP = r13
 LINK = 14 #Link = r14
 PC   = 15 #pr = r15
 CPSR = 16 #32: NZCVQ    7:IF 5:T (thumb) 4-0: mode
+SPSR = 17
+D_CPSR = 18
+LAST_REG = 19
 
 regs = array.array('L', [0]) * 37
 baseLocations = 65536 * 15 # 268435455  # 256MByte
