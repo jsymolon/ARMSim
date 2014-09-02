@@ -20,7 +20,7 @@ class CodeWindow(wx.ScrolledWindow):
         # figure out number of pixels to show/scroll based on font and window size
         self.font = wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL)
         self.sz = self.font.GetPixelSize()
-        self.fheight = self.sz.GetHeight()
+        self.fheight = self.sz.GetHeight() - 2
 
         self.verHeightMaxLines = 1024    # want the scrollable aread to be this
         self.verHeightScrollLines = 32 # want to scroll this many lines
@@ -93,15 +93,16 @@ class CodeWindow(wx.ScrolledWindow):
             instrStr = arm7instrdecode.getInstructionFromAddress(self, addr, globals.memory)
             h = self.fheight * i + cspy
             dc.SetPen(wx.Pen(wx.NamedColour('white'), 20))
+            print 'h:{0:d} fheight:{1:d} i:{2:d} cspy:{3:d}'.format(h, self.fheight, i, cspy)
             #print "c:" + str(addr) + " PC:" + str(globals.regs[globals.PC]) + " h:" + str(h)
             if (addr == globals.regs[globals.PC]):
                 dc.SetPen(wx.Pen(wx.NamedColour('green'), 20))
             dc.DrawRectangle(0, h + self.fheight, w, self.fheight)
             dc.SetPen(wx.Pen(wx.NamedColour('black'), 20))
-            dc.DrawText(str(instrStr), 2, h)
+            dc.DrawText(str(instrStr), 2, h + 2)
         dc.EndDrawing()
 
     #----------------------------------------------------------------------
     def OnSize(self, evt):
         w,h = evt.GetSize()
-        print "OnSize evt:" + str(w) + " " + str(h)
+        #print "OnSize evt:" + str(w) + " " + str(h)
