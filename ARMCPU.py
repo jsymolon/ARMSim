@@ -3,7 +3,7 @@
 # version 3
 import globals
 import System
-import arm7instrdecode
+import armv6instrdecode
 
 # Modes: abort        10111
 #        fast int req 10001
@@ -115,8 +115,94 @@ def reset(self):
    globals.regs[globals.PC] = ADDR_INT
 
 # ---------------------------------------------------------------------
+# get mode bits
+def getModeBits(self):
+   bits = globals.regs[globals.CPSR] & CPSR_M_MASK;
+   return bits
+
+# ---------------------------------------------------------------------
+def mapModeToIndex(self, mode):
+    if mode == PMODE_USR:
+      return PMODE_USR_IDX
+    if mode == PMODE_SYS:
+      return PMODE_SYS_IDX
+    if mode == PMODE_FIQ:
+      return PMODE_FIQ_IDX
+    if mode == PMODE_IRQ:
+      return PMODE_IRQ_IDX
+    if mode == PMODE_SVC:
+      return PMODE_SVC_IDX
+    if mode == PMODE_MON:
+      return PMODE_MON_IDX
+    if mode == PMODE_ABT:
+      return PMODE_ABT_IDX
+    if mode == PMODE_HPY:
+      return PMODE_HPY_IDX
+    if mode == PMODE_UND:
+      return PMODE_UND_IDX
+
+# ---------------------------------------------------------------------
+# map mode to registers
+def swapRegsOnModeChange(self, oldmode, newmode):
+   # FIQ: 8-14, Sup, Abrt, irq & undef: r13,r14
+   # remap SYS to USR
+   if oldmode == PMODE_USR:
+      oldmode = PMODE_SYS
+   if newmode == PMODE_USR:
+      newmode = PMODE_SYS
+   if newmode == oldmode:
+      # no change
+      return
+   # not FIQ only R13 & 14
+   oldidx = mapModeToIndex(oldmode)
+   newidx = mapModeToIndex(newmode)
+   
+   # move old (working) to old
+   globals.regs[oldidx + 13] = globals.regs[13] 
+   globals.regs[oldidx + 14] = globals.regs[14] 
+   # move new to working
+   globals.regs[13] = globals.regs[newidx + 13] 
+   globals.regs[14] = globals.regs[newidx + 14]
+   
+   # handle FIQ
+   if oldmode == PMODE_FIQ:
+      globals.regs[oldidx + 8] = globals.regs[8] 
+      globals.regs[oldidx + 9] = globals.regs[9] 
+      globals.regs[oldidx + 10] = globals.regs[10] 
+      globals.regs[oldidx + 11] = globals.regs[11] 
+      globals.regs[oldidx + 12] = globals.regs[12] 
+      
+   if newmode == PMODE_FIQ:
+      globals.regs[8] = globals.regs[newidx + 8] 
+      globals.regs[9] = globals.regs[newidx + 9]
+      globals.regs[10] = globals.regs[newidx + 10] 
+      globals.regs[11] = globals.regs[newidx + 11] 
+      globals.regs[12] = globals.regs[newidx + 12]
+   
+# ---------------------------------------------------------------------
 def rwCPSR(self, bitname, bitvalue):
     if bitvalue is None: # get
-        return arm7instrdecode.getSetValue(self, CPSR_LOOKUP[bitname], CPSR_SHIFT[bitname], globals.regs[globals.CPSR], None)
+        return armv6instrdecode.getSetValue(self, CPSR_LOOKUP[bitname], CPSR_SHIFT[bitname], globals.regs[globals.CPSR], None)
     else:
-        globals.regs[globals.CPSR] = arm7instrdecode.getSetValue(self, CPSR_LOOKUP[bitname], CPSR_SHIFT[bitname], globals.regs[globals.CPSR], bitvalue)
+        globals.regs[globals.CPSR] = armv6instrdecode.getSetValue(self, CPSR_LOOKUP[bitname], CPSR_SHIFT[bitname], globals.regs[globals.CPSR], bitvalue)
+
+# ---------------------------------------------------------------------
+def isNegative(self):
+   return (globals.regs[globals.CPSR] & NEGATIVEBIT > 0)
+
+# ---------------------------------------------------------------------
+def isZero(self):
+   return (globals.regs[globals.CPSR] & ZEROBIT > 0)
+
+# ---------------------------------------------------------------------
+def isCarry(self):
+   return (globals.regs[globals.CPSR] & CARRYBIT > 0)
+
+# ---------------------------------------------------------------------
+def isOverflow(self):
+   return (globals.regs[globals.CPSR] & OVERBIT > 0)
+
+# ---------------------------------------------------------------------
+def isQSet(self):
+   return (globals.regs[globals.CPSR] & QBIT > 0)
+   

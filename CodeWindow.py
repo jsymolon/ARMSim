@@ -6,7 +6,7 @@ import wx.lib.mixins.inspection
 
 import logging
 import globals
-import arm7instrdecode
+import armv6instrdecode
 import ARMCPU
 
 ###########################################################################
@@ -90,7 +90,7 @@ class CodeWindow(wx.ScrolledWindow):
         #
         for i in range(0, self.numRows):
             addr = (i + self.curRow) * 4
-            instrStr = arm7instrdecode.getInstructionFromAddress(self, addr, globals.memory)
+            instrStr = armv6instrdecode.getInstructionFromAddress(self, addr, globals.memory)
             h = self.fheight * i + cspy
             dc.SetPen(wx.Pen(wx.NamedColour('white'), 20))
             print 'h:{0:d} fheight:{1:d} i:{2:d} cspy:{3:d}'.format(h, self.fheight, i, cspy)

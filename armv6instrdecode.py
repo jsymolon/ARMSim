@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# version 3
+#
+# ARMv6 Architecture
+#
 import globals
 import logging
 import ARMCPU
@@ -26,6 +28,9 @@ LSR = 1
 ASR = 2
 ROR = 3
 RRX = 4
+
+IMM_SHIFT = 0
+REG_SHIFT = 1
 
 # ---------------------------------------------------------------------
 def getSCode(self, code):
@@ -65,6 +70,19 @@ def getRm(self, code):
     global Rm
     Rm = code & 15
     return " R"+str("%02d"%Rm)
+
+# ---------------------------------------------------------------------
+# Data Processing - Bits 6-5 for operand2
+def get_shift_op (self, code):
+    return (code & 0b1100000) >> 5
+
+# ---------------------------------------------------------------------
+# Data Processing - for operand2
+def get_shift_cnt (self, code, which_type):
+    if which_type == IMM_SHIFT:
+        return (code & 0b111110000000) >> 7
+    else:
+        return (code & 0xF00) >> 7  # implied *2
 
 # ---------------------------------------------------------------------
 def getCondCode(self, code):
@@ -140,13 +158,17 @@ def execInstructionAtAddress(self, addr, memory):
 
 # ---------------------------------------------------------------------
 def getInstructionFromCode(self, code, execute):
+    global Rn
+    global Rd
     # dump code
     out  = ' %02X' % (code >> 24)
     out += '%02X' % (code >> 16 & 255)
     out += '%02X' % (code >> 8 & 255)
     out += '%02X' % (code & 255)
     # dump memonic
-    logging.debug(" ")
+    getRn(self, code)
+    getRd(self, code)
+    logging.debug("getInstructionFromCode: Rn:" + str(Rn) + " Rd:" + str(Rd))
     inst1 = (code >> 26 & 3)
     if inst1 == 0:
         out += inst00decode(self, code, execute)
@@ -351,32 +373,52 @@ def conditionMet(self, xCode):
     return False
 
 # ---------------------------------------------------------------------
-def doShift(self, shiftOp, shiftAmt, RmVal):
+def doShift(self, shift_type, shiftOp, shiftAmt, RmVal):
     """ function to do the barrel shifts
+    if OP is LSL - 0-31 else 1-32
     """
     pso = ""
     if shiftOp == RRX:
         pso = "RRX"
     if shiftOp == LSL:
         pso = "LSL"
+        adjust_max = 0
     if shiftOp == LSR:
         pso = "LSR"
     if shiftOp == ASR:
         pso = "ASR"
     if shiftOp == ROR:
-        pso = "ROR"
+        if shift_type == IMM_SHIFT: # fixed field
+            if shiftAmt == 0:
+                pso = "RRX"
+                shiftOp = RRX
+            else:
+                pso = "ROR"
     logging.debug("doShift: shiftOp:" + pso + " shiftAmt:" + hex(shiftAmt) + " RmVal:" + hex(RmVal))
     global carryOut
     carryIn = 0
     carryOut = 0
+    # special case #1
+    if shiftOp == LSL and shiftAmt == 0:
+        if globals.regs[globals.CPSR] & ARMCPU.CARRYBIT > 0:
+            caryOut = 1
+    # special case #2
+    if shiftOp == LSR and shiftAmt == 0:
+        shiftAmt = 32
     if shiftOp == ASR:
-        if Rm & ARMCPU.HIGHBIT > 0:
+        # special case #3
+        if shiftAmt == 0:
+            shiftAmt = 32
+        logging.debug("doShift:ASR and Rm:" + hex(Rm) + " & HIGHBIT:" + hex(ARMCPU.HIGHBIT) + " & " + hex((RmVal & ARMCPU.HIGHBIT )> 0))
+        if (RmVal & ARMCPU.HIGHBIT) > 0:
             carryIn = 1
+            logging.debug("doShift:ASR and carryIn set")
     if shiftOp == RRX:
+        logging.debug("doShift:RRX")
         if globals.regs[globals.CPSR] & ARMCPU.CARRYBIT > 0:
             carryIn = 1
     for x in range(0, shiftAmt):
-        #print "doShift: x:" + str("%02d"%x) + " " + str("%08X"%RmVal)
+        logging.debug("doShift: x:" + str("%02d"%x) + " " + str("%08X"%RmVal))
         if shiftOp == LSL:
             carryOut = RmVal & ARMCPU.HIGHBIT
             # trying to shift the high bit out will cause a "long it too large", clear it
@@ -397,11 +439,62 @@ def doShift(self, shiftOp, shiftAmt, RmVal):
                 RmVal = RmVal | ARMCPU.HIGHBIT
     # RRX only does 1 loop
     if shiftOp == RRX:
+        logging.debug("doShift: rrx before:" + str("%08X"%RmVal))
         carryOut = RmVal & 1
         RmVal = RmVal >> 1
-        if carryOut > 0:
+        if carryIn > 0:
             RmVal = RmVal | ARMCPU.HIGHBIT
+        logging.debug("doShift: rrx  after:" + str("%08X"%RmVal))
+        if carryOut > 0:
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
     return RmVal  # actually OP2
+
+# ---------------------------------------------------------------------
+# Data Processing - Operand 2, output the type of shift and shift amount
+def decodeShift(self, code, shift_type):
+    """
+        ASR permitted shifts 1-32
+        LSL permitted shifts 0-31
+            LSL #0 - 
+        LSR permitted shifts 1-32
+        ROR permitted shifts 1-31
+        RRX - coded as ROR #0
+            shifter_operand = (C Flag Logical_Shift_Left 31) OR (Rm Logical_Shift_Right 1)
+            shifter_carry_out = Rm[0]
+    """
+    retStr = ""
+    shiftOp = get_shift_op(self, code)
+    shiftCnt = get_shift_cnt(self, code, shift_type)
+    oc25 = code >> 25 & 1 # fixed field
+    # oc25 = 0 & shift_type = 0 - DP imm shift
+    # oc25 = 0 & shift_type = 1 - DP reg shift
+    # oc25 = 1 - dp imm
+    if shiftOp == LSL:
+        if oc25 == 0: # fixed field
+            if shiftCnt > 0:
+                retStr += " LSL"
+            else:
+                return retStr
+    if shiftOp == LSR:
+        retStr += " LSR"
+    if shiftOp == ASR:
+        retStr += " ASR"
+    if shiftOp == ROR:
+        if oc25 == 0: # fixed field
+            if shiftCnt == 0:
+                retStr += " RRX"
+                logging.debug("decodeShift: (rrx exit) shiftOp:" + str(shiftOp) + " " + retStr + " shift_type:" + str(shift_type))
+                return retStr
+            else:
+                retStr += " ROR"
+    if shift_type == REG_SHIFT or (shiftOp == LSL and shiftCnt == 0):
+        getRs(self, code) # (code & 0x1E00) >> 9
+        global Rs
+        retStr += " R" + str("%02X"%Rs)
+    else:
+        retStr += " #" + str("%02X"%shiftCnt)
+    logging.debug("decodeShift: shiftOp:" + str(shiftOp) + " " + retStr + " shift_type:" + str(shift_type))
+    return retStr
 
 # ---------------------------------------------------------------------
 #
@@ -411,109 +504,73 @@ def doShift(self, shiftOp, shiftAmt, RmVal):
 # OP2:  SftIMss0-Rm-  # Bit 25 = 0, 4 = 0 # immd shift
 # OP3:  -Rs-0ss1-Rm-  # Bit 25 = 0, 4 = 1 # register shift
 # ---------------------------------------------------------------------
-def getImmOP2DataProcessing(self, code):
-    retVal = 0
-    oc1 = code >> 25 & 1 # fixed field
-    oc2 = code >> 4 & 1 # the other fixed field
-    # oc1 = 0 & oc2 = 0 - DP imm shift
-    # oc1 = 0 & oc2 = 1 - DP reg shift
-    # oc1 = 1 - dp imm
-    if (oc1 == 0):
-        Rm = code & 0xF
-        RmVal = globals.regs[Rm]
-        shiftType = (code & 0b1100000) >> 5
-        if (oc2 == 0):
-            # data processing - immediate shift
-            shiftCnt = (code & 0x1F00) >> 8
-            logging.debug("getImmOP2DataProcessing: shiftCnt:" + hex(shiftCnt))
-            retVal = doShift(self, shiftType, shiftCnt, RmVal)
-        else:
-            # data processing - register shift
-            if 0x00000080 & code:
-                # this is arithmetic or load/store
-                return 0
-            rs = (code & 0x1E00) >> 9
-            logging.debug("getImmOP2DataProcessing: RS:" + hex(rs))
-            RsVal = globals.regs[rs]
-            shiftCnt = RsVal & 0xFF
-            retVal = doShift(self, shiftType, shiftCnt, RmVal)
-    else:
-        # data processing - immediate - rotate
-        immVal = code & 0xFF
-        rot = (code & 0xF00) >> 7  # implied *2
-        logging.debug("getImmOP2DataProcessing:" +  str("%02X"%immVal) + " rot:" + str("%01X"%rot))
-        if rot == 0:
-            return 0
-        else:
-            retVal = doShift(self, ROR, rot, immVal)
-    return retVal
-
-# ---------------------------------------------------------------------
-def decodeShift(self, code):
-    retStr = ""
-    shiftType = (code & 0b1100000) >> 5
-    if shiftOp == RRX:
-        retStr += " RRX"
-    if shiftOp == LSL:
-        retStr += " LSL"
-    if shiftOp == LSR:
-        retStr += " LSR"
-    if shiftOp == ASR:
-        retStr += " ASR"
-    if shiftOp == ROR:
-        retStr += " ROR"
-    return retStr
-
-# ---------------------------------------------------------------------
-def getStrOP2DataProcessing(self, code):
+def getOP2DataProcessing(self, code, getStr):
     """ for the 3 different types (immediate shift, register shift or immdiate)
         return the string rep """
-    oc1 = code >> 25 & 1 # fixed field
-    oc2 = code >> 4 & 1 # the other fixed field
-    # oc1 = 0 & oc2 = 0 - DP imm shift
-    # oc1 = 0 & oc2 = 1 - DP reg shift
-    # oc1 = 1 - dp imm
-    logging.debug("getStrOP2DataProcessing: oc1:"+ str(oc1)+" oc2:" + str(oc2))
+    oc25 = code >> 25 & 1 # fixed field
+    oc4 = code >> 4 & 1 # the other fixed field
+    # oc25 = 0 & oc4 = 0 - DP imm shift
+    # oc25 = 0 & oc4 = 1 - DP reg shift
+    # oc25 = 1 - dp imm
+    logging.debug("getOP2DataProcessing: oc25:"+ str(oc25)+" oc4:" + str(oc4))
     retStr = ""
     immVal = 0
-    if (oc1 == 0):
+    if (oc25 == 0):
         retStr = getRd(self, code) + ","
         Rm = code & 0xF
         RmVal = globals.regs[Rm]
-
-        if (oc2 == 0):
+        shiftOp = get_shift_op(self, code)
+        shiftCnt = get_shift_cnt(self, code, IMM_SHIFT)
+        if shiftOp == ROR and shiftCnt == 0:
+            shiftOp = RRX
+        if shiftOp == LSL and shiftCnt == 0:
+            shiftCnt = RmVal & 0x1F
+            global Rn
+            getRn(self, code)
+            RmVal = globals.regs[Rn]            
+        # special case #2 and 3
+        if (shiftOp == LSR or shiftOp == ASR) and shiftCnt == 0:
+            shiftCnt = 32
+        logging.debug("getOP2DataProcessing: shiftCnt:" + hex(shiftCnt) + " shiftOp:" + str(shiftOp))
+        if (oc4 == 0):
             # data processing - immediate shift
-            retStr += getRn(self, code)
-            retStr += decodeShift(self, code)
+            rnStr = getRn(self, code)
+            if (Rd != Rn):
+                retStr += rnStr
+            retStr += getRm(self, code)
+            retStr += decodeShift(self, code, IMM_SHIFT)
             logging.debug(" immediate shift")
-            shiftCnt = (code & 0b111110000000) >> 7
-            logging.debug("getStrOP2DataProcessing: shiftCnt:" + hex(shiftCnt))
-            retStr += " #" + str("%02X"%shiftCnt)
+            immVal = doShift(self, IMM_SHIFT, shiftOp, shiftCnt, RmVal)
         else:
             # data processing - register shift
             retStr += getRm(self, code)
-            retStr += decodeShift(self, code)
+            retStr += decodeShift(self, code, REG_SHIFT)
             logging.debug(" register shift")
             if 0x00000080 & code:
                 # this is arithmetic or load/store
                 return ""
-            rs = (code & 0x1E00) >> 9
-            logging.debug("getStrOP2DataProcessing: RS:" + hex(rs))
-            RsVal = globals.regs[rs]
-            shiftCnt = RsVal & 0xFF
-            retStr += " #" + str("%02X"%immVal)
+            getRs(self, code) # (code & 0x1E00) >> 9
+            global Rs
+            logging.debug("getOP2DataProcessing: RS:" + hex(Rs))
+            RsVal = globals.regs[Rs]
+            immVal = doShift(self, REG_SHIFT, shiftOp, RsVal, RmVal)
     else:
-        # data processing - immediate - rotate
+        # data processing - immediate - rotate b11-b8 -rot, b7-b0 immed_8  5.4.3 immediate operand rotates
         retStr = getRd(self, code) + ","
-        retStr += getRn(self, code)
+        rnStr = getRn(self, code)
+        if (Rd != Rn):
+            retStr += rnStr
         logging.debug(" immediate rotate")
         immVal = code & 0xFF
-        rot = (code & 0xF00) >> 7  # implied *2
-        logging.debug("getStrOP2DataProcessing:" +  str("%02X"%immVal) + " rot:" + str("%01X"%rot))
-        if rot != 0:
-            retStr += " ROR"
-        retStr += " #" + str("%02X"%immVal)
-    return retStr
+        shiftCnt = get_shift_cnt(self, code, REG_SHIFT)
+        logging.debug("getOP2DataProcessing:" +  str("%02X"%immVal) + " rot:" + str("%01X"%shiftCnt))
+        if not getStr:
+            immVal = doShift(self, REG_SHIFT, ROR, shiftCnt, immVal)
+        else:
+            retStr += str(" #%02X"%immVal)
+    if (getStr):
+        return retStr
+    return immVal
 
 # ---------------------------------------------------------------------
 def doDataInst(self, code, execute):
@@ -525,18 +582,17 @@ def doDataInst(self, code, execute):
     if not conditionMet(self, condCode):
         logging.debug("doDataInst: turn off exec because condition is " + hex(condCode) + " met")
         execute = 0
-    op2_val = getImmOP2DataProcessing(self, code)
+    op2_val = getOP2DataProcessing(self, code, 0)
     logging.debug("d_op_code:"+hex(d_op_code)+" op2_val:"+hex(op2_val)+" d:"+str(Rd))
     # output instruction
-    s_bit = code >> 20 & 1 # S bit
     # split functionality by opcode; AND, MLA, MUL, STR, LDR, udf, LDR
-    retStr = getStrOP2DataProcessing(self, code)
+    retStr = getOP2DataProcessing(self, code, 1)
     if (self.d_op_code == 0):
         oc2 = (code >> 4) & 15
         if oc2 == 0b0001:  # # or Rs
             # AND
             if (not execute):
-                retStr =+ getStrOP2DataProcessing(self, code)
+                retStr =+ getOP2DataProcessing(self, code, 1)
             else:
                 globals.regs[Rd] = op2_val & globals.regs[Rn]
         if oc2 == 0b1001:
@@ -583,7 +639,7 @@ def doDataInst(self, code, execute):
     if (self.d_op_code == 5):
         # ADC rd = rn + op2 + carry
         globals.regs[Rd] = globals.regs[Rn] + op2_val + carry
-        logging.debug("Rd:" + str(Rd) + " Rn:" + str(Rn) + " OP2:" + str(op2_val) + " C:" + str(carry))
+        logging.debug("Rd:" + str(Rd) + " Rn:" + str(Rn) + " OP2:" + hex(op2_val) + " C:" + str(carry))
     if (self.d_op_code == 6):
         # SBC rd = rn - op2 - not(carry)
         globals.regs[Rd] = globals.regs[Rn] - op2_val - ~carry

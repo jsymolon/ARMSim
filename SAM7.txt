@@ -1,0 +1,97 @@
+SAM BOOT
+
+21.3
+Device Initialization with USB
+Initialization follows the steps described below:
+1. FIQ initialization
+1. Stack setup for ARM supervisor mode
+2. Setup the Embedded Flash Controller
+3. External Clock detection
+4. Main oscillator frequency detection if no external clock detected
+5. Switch Master Clock on Main Oscillator
+6. Copy code into SRAM
+7. C variable initialization
+8. PLL setup: PLL is initialized to generate a 48 MHz clock necessary to use the USB Device
+9. Disable of the Watchdog and enable of the user reset
+10. Initialization of the USB Device Port
+11. Jump to SAM-BA Boot sequence (see “SAM-BA Boot” on page 145)
+21.4
+Device Initialization without USB
+Initialization follows the steps described below:
+1. FIQ initialization
+1. Stack setup for ARM supervisor mode
+2. Setup the Embedded Flash Controller
+3. External Clock detection
+4. Main oscillator frequency detection if no external clock detected
+5. Switch Master Clock on Main Oscillator
+6. Copy code into SRAM
+7. C variable initialization
+8. PLL setup: PLL is initialized to generate a 48 MHz clock
+9. Disable of the Watchdog and enable of the user reset
+10. Jump to SAM-BA Boot sequence (see “SAM-BA Boot” below)
+
+Table 21-1.
+Commands Available through the SAM-BA Boot
+Command Action Argument(s) Example
+O write a byte Address, Value# O200001,CA#
+o read a byte Address,# o200001,#
+H write a half word Address, Value# H200002,CAFE#
+h read a half word Address,# h200002,#
+W write a word Address, Value# W200000,CAFEDECA#
+w read a word Address,# w200000,#
+S send a file Address,# S200000,#
+R receive a file Address, NbOfBytes# R200000,1234#
+G go Address# G200200#
+V display version No argument V#
+
+21.5.1
+DBGU Serial Port
+Communication is performed through the DBGU serial port initialized to 115200 Baud, 8, n, 1.
+The Send and Receive File commands use the Xmodem protocol to communicate. Any terminal performing this
+protocol can be used to send the application file to the target. The size of the binary file to send depends on the
+SRAM size embedded in the product. In all cases, the size of the binary file must be lower than the SRAM size
+because the Xmodem protocol requires some SRAM memory to work.
+21.5.2
+Xmodem Protocol
+The Xmodem protocol supported is the 128-byte length block. This protocol uses a two-character CRC-16 to guar-
+antee detection of a maximum bit error.
+Xmodem protocol with CRC is accurate provided both sender and receiver report successful transmission. Each
+block of the transfer looks like:
+<SOH><blk #><255-blk #><--128 data bytes--><checksum> in which:
+– <SOH> = 01 hex
+– <blk #> = binary number, starts at 01, increments by 1, and wraps 0FFH to 00H (not to 01)
+– <255-blk #> = 1’s complement of the blk#.
+– <checksum> = 2 bytes CRC16
+
+21.6
+Hardware and Software Constraints
+• SAM-BA boot copies itself in the SRAM and uses a block of internal SRAM for variables and stacks. The
+remaining available sizes for the user codes are as follows: 57344 bytes for SAM7S512, 57344 bytes for
+SAM7S256, 24576 bytes for SAM7S128, 8192 bytes for SAM7S64, 2048 bytes for SAM7S321 and SAM7S32,
+3840 bytes for SAM7S161 and SAM7S16.
+• USB requirements: (Does not pertain to SAM7S32/16)
+– 18.432 MHz Quartz
+– PIOA16 dedicated to the USB Pull-up
+Table 21-4.
+User Area Addresses
+Device Start Address End Address Size (bytes)
+SAM7S512 0x202000 0x210000 57344
+SAM7S256 0x202000 0x210000 57344
+SAM7S128 0x202000 0x208000 24576
+SAM7S64 0x202000 0x204000 8192
+SAM7S321 0x202000 0x210000 2048
+SAM7S32 0x201400 0x201C00 2048
+SAM7S161 0x200000 0200F00 3840
+SAM7S16 0x200000 0200F00 3840
+
+
+
+
+    Defines interrupt and exception vectors.
+    Configures the CPU clock source (on some devices).
+    Initializes the external bus controller.
+    Copies the exception vectors from ROM to RAM for systems with memory remapping.
+    Initializes other low level peripherals, if necessary.
+    Reserves and initializes the stack for all modes.
+    Reserves the heap.
+    Transfers control to the main C function.

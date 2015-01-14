@@ -1,7 +1,7 @@
 import unittest
 import pdb
 import globals
-import arm7instrdecode
+import armv6instrdecode
 import ARMCPU
 
 class TestCSPRFunctions(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestCSPRFunctions(unittest.TestCase):
         baseval = int("00000000", 16)
         value = int("f0", 16)
         shift = 4
-        val2 = arm7instrdecode.getSetValue(self, bitmask, shift, baseval, value)
+        val2 = armv6instrdecode.getSetValue(self, bitmask, shift, baseval, value)
         self.assertEqual(value * 16, val2)
 
     # ----------------------------------------------
@@ -24,7 +24,7 @@ class TestCSPRFunctions(unittest.TestCase):
         baseval = int("000000f0", 16)
         value = None
         shift = 4
-        val2 = arm7instrdecode.getSetValue(self, bitmask, shift, baseval, value)
+        val2 = armv6instrdecode.getSetValue(self, bitmask, shift, baseval, value)
         self.assertEqual(15, val2)
 
     # ----------------------------------------------
@@ -33,7 +33,7 @@ class TestCSPRFunctions(unittest.TestCase):
         baseval = int("00000000", 16)
         value = int("f", 16)
         shift = 0
-        val2 = arm7instrdecode.getSetValue(self, bitmask, shift, baseval, value)
+        val2 = armv6instrdecode.getSetValue(self, bitmask, shift, baseval, value)
         self.assertEqual(value, val2)
 
     # ----------------------------------------------
@@ -42,7 +42,7 @@ class TestCSPRFunctions(unittest.TestCase):
         baseval = int("0000000f", 16)
         value = None
         shift = 0
-        val2 = arm7instrdecode.getSetValue(self, bitmask, shift, baseval, value)
+        val2 = armv6instrdecode.getSetValue(self, bitmask, shift, baseval, value)
         self.assertEqual(15, val2)
 
     # ----------------------------------------------

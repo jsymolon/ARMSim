@@ -1,6 +1,6 @@
 import unittest
 import ARMCPU
-import arm7instrdecode
+import armv6instrdecode
 import globals
 import utils
 import logging
@@ -41,12 +41,12 @@ class TestDecode(unittest.TestCase):
     def testCondMet(self):
         # No condition met (always)
         globals.regs[globals.CPSR] = 0
-        cm = arm7instrdecode.conditionMet(self, ARMCPU.CC_AL)
+        cm = armv6instrdecode.conditionMet(self, ARMCPU.CC_AL)
         self.assertEqual(cm, 1L, cm)
         # EQ
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
         logging.debug(utils.getCSPRString(self))
-        cm = arm7instrdecode.conditionMet(self, ARMCPU.CC_EQ)
+        cm = armv6instrdecode.conditionMet(self, ARMCPU.CC_EQ)
         self.assertEqual(cm, 1L, cm)
 
     def testCondExec(self):
@@ -61,7 +61,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit set, exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00000011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00000011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -69,7 +69,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00000011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00000011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -79,7 +79,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit clear, exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00010011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00010011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -87,7 +87,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00010011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00010011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -98,7 +98,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -106,7 +106,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00100011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00100011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -116,7 +116,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit clear, exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00110011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00110011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -124,7 +124,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b00110011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b00110011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -135,7 +135,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01000011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01000011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -143,7 +143,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01000011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01000011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -153,7 +153,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit clear, exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01010011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01010011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -161,7 +161,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01010011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01010011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -172,7 +172,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.OVERBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -180,7 +180,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01100011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01100011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -190,7 +190,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit clear, exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01110011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01110011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -198,7 +198,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit not set, skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.OVERBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b01110011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b01110011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -209,7 +209,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10000011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10000011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -218,7 +218,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10000011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10000011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -229,7 +229,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10010011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10010011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -238,7 +238,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10010011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10010011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -249,7 +249,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT | ARMCPU.OVERBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -257,7 +257,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -266,7 +266,7 @@ class TestDecode(unittest.TestCase):
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -276,7 +276,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT | ARMCPU.OVERBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -284,7 +284,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -292,7 +292,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , skip exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111110, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b10100011101000000000000011111110, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:00000000", reg)
@@ -302,7 +302,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = 0
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b11000011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b11000011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)
@@ -312,7 +312,7 @@ class TestDecode(unittest.TestCase):
         logging.debug("--- Bit , exec")
         globals.regs[0] = 0
         globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
-        instrStr = arm7instrdecode.getInstructionFromCode(self, 0b11010011101000000000000011111111, 1)
+        instrStr = armv6instrdecode.getInstructionFromCode(self, 0b11010011101000000000000011111111, 1)
         logging.debug(instrStr)
         reg = utils.buildRegValString(self, 0)
         self.assertEqual(reg, "R00:000000FF", reg)

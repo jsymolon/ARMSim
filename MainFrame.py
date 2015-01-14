@@ -16,8 +16,9 @@ import shlex
 import globals
 import os
 import dumpelf
+import dumphex
 import ARMCPU
-import arm7instrdecode
+import armv6instrdecode
 
 from CodeWindow import CodeWindow
 from CmdWindow import CmdWindow
@@ -225,7 +226,7 @@ class MainFrame ( wx.Frame ):
         """open a file"""
         print "Open File"
         self.dirname = ''
-        fileType = "ELF (.elf)|*.elf"
+        fileType = "ELF (.elf)|*.elf| HEX (.hex)|*.hex"
         dlg = wx.FileDialog(self, "Choose a file", self.dirname, "", fileType, wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             self.filename = dlg.GetFilename()
@@ -235,7 +236,10 @@ class MainFrame ( wx.Frame ):
         #self.full_path =  os.path.join(self.dirname, self.filename)
         #print "Open file:" + self.full_path  # test
         print "Open file:" + self.filepath  # test
-        efile = dumpelf.ELFFile(self.filepath, globals.memory)
+        if self.filename.rfind("elf") > -1 :
+            efile = dumpelf.ELFFile(self.filepath, globals.memory)
+        else:
+            efile = dumphex.HEXFile(self.filepath, globals.memory)
         dlg.Destroy()
         self.updateKids()
 
@@ -284,7 +288,7 @@ class MainFrame ( wx.Frame ):
         if len(lineText) > 0:
             firstChar = lineText[0][:1]
             if (firstChar == 's' ):
-                globals.regs[globals.PC] = arm7instrdecode.execInstructionAtAddress(self, globals.regs[globals.PC], globals.memory)
+                globals.regs[globals.PC] = armv6instrdecode.execInstructionAtAddress(self, globals.regs[globals.PC], globals.memory)
             if (firstChar == 'r' ):
                 if lineText[1:2] == 'e':
                     # reset
