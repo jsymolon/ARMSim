@@ -135,5 +135,19 @@ class TestADC(unittest.TestCase):
         reg = utils.buildRegValString(self, 6)
         self.assertEqual(reg, "R06:40000006", reg)
         
+    def testADC_64bit(self):
+        logging.debug("------------------------------------------")
+        logging.debug("TestDecode:testADC_64bit")
+        code = 0xE2910001  # ADDALS R0, R1, #1
+        globals.regs[1] = 0xFFFFFFFF
+        globals.regs[0] = 0
+        globals.regs[globals.CPSR] = 0
+        instrStr = armv6instrdecode.getInstructionFromCode(self, code, 1)
+        code = 0xE2B10001  # ADCALS R0, R1, #1
+        globals.regs[1] = 0
+        instrStr = armv6instrdecode.getInstructionFromCode(self, code, 1)
+        reg = utils.buildRegValString(self, 0)
+        self.assertEqual(reg, "R00:00000002", reg)
+
 if __name__ == "__main__":
     unittest.main()

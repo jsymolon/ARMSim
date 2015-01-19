@@ -43,7 +43,7 @@ class TestADD(unittest.TestCase):
     def testADD_Imm1(self):
         logging.debug("------------------------------------------")
         logging.debug("TestDecode:testADD_Imm1")
-        code = 0xE2810A01  #2000101
+        code = 0xE2810A01  # ADDAL R0, R1, #4096
         instrStr = armv6instrdecode.getInstructionFromCode(self, code, 0)
         logging.debug("1:" + instrStr)
         self.assertEqual(instrStr, " E2810A01 ADD AL    R00, R01 #01", instrStr)
@@ -107,25 +107,43 @@ class TestADD(unittest.TestCase):
         reg = utils.buildRegValString(self, 6)
         self.assertEqual(reg, "R06:80000001", reg)
 
-    def testADD_setflag(self):
+    def testADD_setflag_c(self):
         logging.debug("------------------------------------------")
-        logging.debug("TestDecode:testADD_setflag")
-        code = 0xE2910A01  # 010A91E2 	    ADDALS R0, R1, #4096
-        instrStr = armv6instrdecode.getInstructionFromCode(self, code, 0)
-        logging.debug("1:" + instrStr)
-        self.assertEqual(instrStr, " E2910A01 ADD ALS   R00, R01 #01", instrStr)
-
-        globals.regs[4] = 1
-        globals.regs[5] = 0x40000000
-        globals.regs[6] = 1
-        globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
+        logging.debug("TestDecode:testADD_setflag_c - should produce an carry")
+        code = 0xE2910001  # ADDALS R0, R1, #1
+        globals.regs[1] = 0xFFFFFFFF
+        globals.regs[0] = 0
+        globals.regs[globals.CPSR] = 0
         instrStr = armv6instrdecode.getInstructionFromCode(self, code, 1)
-        reg = utils.buildRegValString(self, 6)
-        self.assertEqual(reg, "R06:00000001", reg)
+        reg = utils.buildRegValString(self, 0)
+        self.assertEqual(reg, "R00:00000000", reg)
         # N Flag = Rd[31]
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.NEGATIVEBIT == 0, 1)
         # Z Flag = if Rd == 0 then 1 else 0
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.ZEROBIT > 0, 1)
         # C Flag = CarryFrom(Rn + shifter_operand)
         # V Flag = OverflowFrom(Rn + shifter_operand)
+        #logging.debug(hex(globals.regs[globals.CPSR] & ARMCPU.OVERBIT))
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.CARRYBIT > 0, 1)
+
+    def testADD_setflag_o(self):
+        logging.debug("------------------------------------------")
+        logging.debug("TestDecode:testADD_setflag_o - should produce an overflow")
+        code = 0xE2910001  # ADDALS R0, R1, #1
+        globals.regs[1] = 0x7FFFFFFF
+        globals.regs[0] = 0
+        globals.regs[globals.CPSR] = 0
+        instrStr = armv6instrdecode.getInstructionFromCode(self, code, 1)
+        reg = utils.buildRegValString(self, 0)
+        self.assertEqual(reg, "R00:80000000", reg)
+        # N Flag = Rd[31]
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.NEGATIVEBIT > 0, 1)
+        # Z Flag = if Rd == 0 then 1 else 0
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.ZEROBIT == 0, 1)
+        # C Flag = CarryFrom(Rn + shifter_operand)
+        # V Flag = OverflowFrom(Rn + shifter_operand)
+        #logging.debug(hex(globals.regs[globals.CPSR] & ARMCPU.OVERBIT))
+        self.assertEqual(1, globals.regs[globals.CPSR] & ARMCPU.OVERBIT > 0, 1)
 
 if __name__ == "__main__":
     unittest.main()

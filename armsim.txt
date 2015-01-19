@@ -1,1 +1,5 @@
-http://github.com/jsymolon/ARMSim
+URL: http://github.com/jsymolon/ARMSim
+
+git commit -am "message"
+
+git push URL

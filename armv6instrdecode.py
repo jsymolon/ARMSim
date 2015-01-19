@@ -193,9 +193,9 @@ def inst00decode(self, code, execute):
     logging.debug("inst00decode: code:" + str("%08X"%code) + " d_op_code:" + hex(d_op_code))
     retStr = "";
     # split functionality by opcode; AND, MLA, MUL, STR, LDR, udf, LDR
+    mod = code >> 20 & 1 # S bit
     if (self.d_op_code == 0):
         oc2 = code >> 4 & 15 # the other fixed field
-        mod = code >> 20 & 1 # S bit
         andchk = oc2 | 1; # AND is 0000 and 0001
         logging.debug("code:" + hex(code) + " oc2:" + hex(oc2) +  " mod:" + hex(mod) + " andchk:" + hex(andchk))
         if andchk == 0b0001:  # # or Rs
@@ -234,7 +234,10 @@ def inst00decode(self, code, execute):
     if (self.d_op_code == 8):
         retStr = " TST"
     if (self.d_op_code == 9):
-        retStr = " TEQ"
+        if mod == 0:
+            retStr = " BKPT"
+        else:
+            retStr = " TEQ"
     if (self.d_op_code == 10):
         retStr = " CMP"
     if (self.d_op_code == 11):
@@ -587,6 +590,10 @@ def doDataInst(self, code, execute):
     # output instruction
     # split functionality by opcode; AND, MLA, MUL, STR, LDR, udf, LDR
     retStr = getOP2DataProcessing(self, code, 1)
+    overflow = 0
+    copySPSRtoCPSR = 0
+    carryOut = 0
+    mod = code >> 20 & 1 # S bit & other instructions
     if (self.d_op_code == 0):
         oc2 = (code >> 4) & 15
         if oc2 == 0b0001:  # # or Rs
@@ -636,13 +643,27 @@ def doDataInst(self, code, execute):
     if (self.d_op_code == 4):
         # ADD rd = rn + op2
         globals.regs[Rd] = globals.regs[Rn] + op2_val
+        if (globals.regs[Rn] & 0x80000000) == 0 and (op2_val & 0x80000000) == 0 and (globals.regs[Rd] & 0x80000000) > 0:
+            overflow = 1
+        if (globals.regs[Rn] & 0x80000000) > 0 and (op2_val & 0x80000000) > 0 and (globals.regs[Rd] & 0x80000000) == 0:
+            overflow = 1
     if (self.d_op_code == 5):
         # ADC rd = rn + op2 + carry
         globals.regs[Rd] = globals.regs[Rn] + op2_val + carry
+        if (globals.regs[Rn] & 0x80000000) == 0 and (op2_val & 0x80000000) == 0 and (globals.regs[Rd] & 0x80000000) > 0:
+            overflow = 1
+        if (globals.regs[Rn] & 0x80000000) > 0 and (op2_val & 0x80000000) > 0 and (globals.regs[Rd] & 0x80000000) == 0:
+            overflow = 1
+        if Rd == 15:
+            copySPSRtoCPSR = 1
         logging.debug("Rd:" + str(Rd) + " Rn:" + str(Rn) + " OP2:" + hex(op2_val) + " C:" + str(carry))
     if (self.d_op_code == 6):
         # SBC rd = rn - op2 - not(carry)
         globals.regs[Rd] = globals.regs[Rn] - op2_val - ~carry
+        if (globals.regs[Rn] & 0x80000000) == 0 and (op2_val & 0x80000000) == 0 and (globals.regs[Rd] & 0x80000000) > 0:
+            overflow = 1
+        if (globals.regs[Rn] & 0x80000000) > 0 and (op2_val & 0x80000000) > 0 and (globals.regs[Rd] & 0x80000000) == 0:
+            overflow = 1
     if (self.d_op_code == 7):
         # RSC rd = op2 - rn - not carry
         globals.regs[Rd] = op2_val - globals.regs[Rn] - ~carry
@@ -650,8 +671,13 @@ def doDataInst(self, code, execute):
         # TST flags -> rn & op2
         flags = globals.regs[Rn] & op2_val
     if (self.d_op_code == 9):
-        # TEQ flags -> rn ^ op2
-        flags = globals.regs[Rn] ^ op2_val
+        if mod == 0:
+            # BKPT
+            address = ((code & 0xFFF00) >> 4) | (code & 0xF)
+            ARMCPU.breakpoint(self, address)
+        else:
+            # TEQ flags -> rn ^ op2
+            flags = globals.regs[Rn] ^ op2_val
     if (self.d_op_code == 10):
         # CMP flags -> rn - op2
         flags = globals.regs[Rn] - op2_val
@@ -670,13 +696,26 @@ def doDataInst(self, code, execute):
     if (self.d_op_code == 15):
         # MVN !rd (rn igrnored)
         globals.regs[Rd] = ~op2_val
+    if globals.regs[Rd] > 0xFFFFFFFF:  # limit value to register size
+       globals.regs[Rd] = 0
+       carryOut = 1
     if (sCode != 0 and Rd != 15):  # set the flags
         if globals.regs[Rd] == 0:  # Zero
             globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.ZEROBIT
         else:
             globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.ZEROBIT
+        if globals.regs[Rd] & 0x80000000 > 0:  # negative
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.NEGATIVEBIT
+        else:
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.NEGATIVEBIT
         if carryOut == 1:
             globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.CARRYBIT
         else:
             globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.CARRYBIT
+        if overflow == 1:
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] | ARMCPU.OVERBIT
+        else:
+            globals.regs[globals.CPSR] = globals.regs[globals.CPSR] & ~ARMCPU.OVERBIT
+    if copySPSRtoCPSR == 1:
+        globals.regs[globals.CPSR] = globals.regs[globals.SPSR]
     return retStr
