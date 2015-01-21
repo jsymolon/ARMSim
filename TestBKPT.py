@@ -46,7 +46,7 @@ class TestBKPT(unittest.TestCase):
         code = 0xE1210070  # BKPT #4096
         instrStr = armv6instrdecode.getInstructionFromCode(self, code, 0)
         logging.debug("1:" + instrStr)
-        self.assertEqual(instrStr, " E1210070 BKPT #4096", instrStr)
+        self.assertEqual(instrStr, " E1210070 BKPT AL    BKPT #4096", instrStr)
 
 if __name__ == "__main__":
     unittest.main()

@@ -511,6 +511,7 @@ def getOP2DataProcessing(self, code, getStr):
     """ for the 3 different types (immediate shift, register shift or immdiate)
         return the string rep """
     oc25 = code >> 25 & 1 # fixed field
+    oc20 = code >> 20 & 1 # S bit and other instruction    
     oc4 = code >> 4 & 1 # the other fixed field
     # oc25 = 0 & oc4 = 0 - DP imm shift
     # oc25 = 0 & oc4 = 1 - DP reg shift
@@ -582,6 +583,14 @@ def doDataInst(self, code, execute):
     global condCode
     logging.debug("doDataInst: code:" + str("%08X"%code) + " Rn:" + str(Rn) + " Rd:" + str(Rd))
     """ opCode is the data instructions """
+    mod = code >> 20 & 1 # S bit & other instructions
+    if self.d_op_code == 9 and mod == 0:
+        # BKPT
+        address = ((code & 0xFFF00) >> 4) | (code & 0xF)
+        retStr = " BKPT #" + str(address)
+        if execute == 1:
+            ARMCPU.breakpoint(self, address)
+        return retStr
     if not conditionMet(self, condCode):
         logging.debug("doDataInst: turn off exec because condition is " + hex(condCode) + " met")
         execute = 0
@@ -593,7 +602,6 @@ def doDataInst(self, code, execute):
     overflow = 0
     copySPSRtoCPSR = 0
     carryOut = 0
-    mod = code >> 20 & 1 # S bit & other instructions
     if (self.d_op_code == 0):
         oc2 = (code >> 4) & 15
         if oc2 == 0b0001:  # # or Rs
@@ -671,11 +679,7 @@ def doDataInst(self, code, execute):
         # TST flags -> rn & op2
         flags = globals.regs[Rn] & op2_val
     if (self.d_op_code == 9):
-        if mod == 0:
-            # BKPT
-            address = ((code & 0xFFF00) >> 4) | (code & 0xF)
-            ARMCPU.breakpoint(self, address)
-        else:
+        if mod == 1:
             # TEQ flags -> rn ^ op2
             flags = globals.regs[Rn] ^ op2_val
     if (self.d_op_code == 10):
